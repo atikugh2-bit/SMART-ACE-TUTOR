@@ -97,7 +97,7 @@ function Gate({ onKey }) {
       const r = await fetch("https://api.anthropic.com/v1/messages", {
         method:"POST",
         headers:{"Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-        body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:5,messages:[{role:"user",content:"hi"}]})
+        body:JSON.stringify({model:"claude-haiku-4-5",max_tokens:5,messages:[{role:"user",content:"hi"}]})
       });
       if (r.status===401) { setErr("Invalid API key. Please check and try again."); }
       else { localStorage.setItem("sa_k",key); onKey(key); }
@@ -151,7 +151,7 @@ function Tutor({apiKey,onLogout}) {
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method:"POST",
       headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-      body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:1500,system:sys||SYSTEM_PROMPT,messages})
+      body:JSON.stringify({model:"claude-haiku-4-5",max_tokens:1500,system:sys||SYSTEM_PROMPT,messages})
     });
     if (r.status===401){onLogout();throw new Error("Invalid API key")}
     if (!r.ok) throw new Error(`API error ${r.status}`);
