@@ -11,11 +11,18 @@ module.exports = async (req, res) => {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ error: "API key not configured" });
 
+  // Parse body manually if needed
+  let body = req.body;
+  if (typeof body === "string") {
+    try { body = JSON.parse(body); } catch { body = {}; }
+  }
+  if (!body || typeof body !== "object") body = {};
+
   const payload = JSON.stringify({
     model: "claude-3-sonnet-20240229",
     max_tokens: 1500,
-    system: req.body.system || "",
-    messages: req.body.messages || [],
+    system: body.system || "",
+    messages: body.messages || [],
   });
 
   const options = {
@@ -31,24 +38,24 @@ module.exports = async (req, res) => {
   };
 
   return new Promise((resolve) => {
-    const request = https.request(options, (response) => {
+    const apiReq = https.request(options, (apiRes) => {
       let data = "";
-      response.on("data", (chunk) => { data += chunk; });
-      response.on("end", () => {
+      apiRes.on("data", (chunk) => { data += chunk; });
+      apiRes.on("end", () => {
         try {
           const parsed = JSON.parse(data);
-          res.status(response.statusCode).json(parsed);
+          res.status(apiRes.statusCode).json(parsed);
         } catch (e) {
-          res.status(500).json({ error: "Failed to parse response" });
+          res.status(500).json({ error: "Parse error: " + data.slice(0, 100) });
         }
         resolve();
       });
     });
-    request.on("error", (err) => {
+    apiReq.on("error", (err) => {
       res.status(500).json({ error: err.message });
       resolve();
     });
-    request.write(payload);
-    request.end();
+    apiReq.write(payload);
+    apiReq.end();
   });
 };
