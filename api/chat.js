@@ -1,3 +1,5 @@
+const https = require("https");
+
 module.exports = async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -9,23 +11,44 @@ module.exports = async (req, res) => {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ error: "API key not configured" });
 
-  try {
-    const body = { ...req.body, model: "claude-3-sonnet-20240229" };
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify(body),
+  const payload = JSON.stringify({
+    model: "claude-3-sonnet-20240229",
+    max_tokens: 1500,
+    system: req.body.system || "",
+    messages: req.body.messages || [],
+  });
+
+  const options = {
+    hostname: "api.anthropic.com",
+    path: "/v1/messages",
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "Content-Length": Buffer.byteLength(payload),
+    },
+  };
+
+  return new Promise((resolve) => {
+    const request = https.request(options, (response) => {
+      let data = "";
+      response.on("data", (chunk) => { data += chunk; });
+      response.on("end", () => {
+        try {
+          const parsed = JSON.parse(data);
+          res.status(response.statusCode).json(parsed);
+        } catch (e) {
+          res.status(500).json({ error: "Failed to parse response" });
+        }
+        resolve();
+      });
     });
-    const data = await response.json();
-    if (!response.ok) {
-      return res.status(response.status).json({ error: data.error?.message || "API error" });
-    }
-    return res.status(200).json(data);
-  } catch (err) {
-    return res.status(500).json({ error: "Server error: " + err.message });
-  }
+    request.on("error", (err) => {
+      res.status(500).json({ error: err.message });
+      resolve();
+    });
+    request.write(payload);
+    request.end();
+  });
 };
